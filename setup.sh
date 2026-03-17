@@ -196,8 +196,8 @@ abbr gl  "git log --oneline --graph --decorate"
 abbr pr  "gh pr create"
 
 # Multiplexer
-abbr zj  "zellij"
-abbr zja "zellij attach"
+abbr z  "zellij"
+abbr za "zellij attach"
 
 # Python / UV
 abbr ua  "uv add"
