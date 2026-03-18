@@ -131,12 +131,32 @@ uv tool install pre-commit
 # 5. Node.js Setup (via FNM)
 # ==========================================
 echo "🌐 Installing Node.js via fnm..."
-curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "$HOME/.local/bin" --skip-shell
-eval "$($HOME/.local/bin/fnm env)"
+if ! command -v fnm &> /dev/null; then
+    curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "$HOME/.local/bin" --skip-shell
+fi
 
-fnm install --lts
-fnm default lts
-fnm use lts
+FNM_BIN="$(command -v fnm || true)"
+if [ -z "$FNM_BIN" ] && [ -x "$HOME/.local/bin/fnm" ]; then
+    FNM_BIN="$HOME/.local/bin/fnm"
+fi
+
+if [ -z "$FNM_BIN" ]; then
+    echo "❌ fnm was not installed correctly."
+    exit 1
+fi
+
+eval "$("$FNM_BIN" env --shell bash)"
+
+"$FNM_BIN" install --lts
+NODE_LTS_VERSION="$("$FNM_BIN" current)"
+
+if [ -z "$NODE_LTS_VERSION" ] || [ "$NODE_LTS_VERSION" = "system" ]; then
+    echo "❌ fnm did not activate an LTS Node version."
+    exit 1
+fi
+
+"$FNM_BIN" default "$NODE_LTS_VERSION"
+"$FNM_BIN" use "$NODE_LTS_VERSION"
 npm install -g pnpm yarn typescript tsx npm-check-updates
 
 # ==========================================
