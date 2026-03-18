@@ -13,8 +13,16 @@ if command -v zoxide > /dev/null
     zoxide init fish | source
 end
 
+if command -v direnv > /dev/null
+    direnv hook fish | source
+end
+
 if command -v fnm > /dev/null
     fnm env --use-on-cd | source
+end
+
+if type -q fzf_configure_bindings
+    fzf_configure_bindings --directory=\cf --git_log=\cg --git_status=\cs --history=\cr --variables=\cv
 end
 
 if command -v eza > /dev/null
@@ -35,6 +43,10 @@ abbr ga "git add"
 abbr gc "git commit -m"
 abbr gp "git push"
 abbr gl "git log --oneline --graph --decorate"
+abbr gd "git diff"
+abbr gco "git checkout"
+abbr gsw "git switch"
+abbr grs "git restore"
 abbr pr "gh pr create"
 
 abbr zj "zellij"
@@ -44,6 +56,7 @@ abbr ua "uv add"
 abbr us "uv sync"
 abbr ur "uv run"
 abbr ut "uv tree"
+abbr up "uv run pytest"
 abbr venv "source .venv/bin/activate.fish"
 
 abbr nd "npm run dev"
@@ -51,6 +64,10 @@ abbr nb "npm run build"
 abbr ns "npm start"
 abbr pd "pnpm dev"
 abbr yd "yarn dev"
+
+abbr dcu "docker compose up"
+abbr dcd "docker compose down"
+abbr k "kubectl"
 
 abbr .. "cd .."
 abbr ... "cd ../.."

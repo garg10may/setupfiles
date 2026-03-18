@@ -114,10 +114,29 @@ install_gh_linux() {
     rm -rf "$temp_dir" "$archive"
 }
 
+install_macos_package_groups() {
+    log "Installing macOS base CLI packages"
+    brew install gcc make cmake fish neovim git curl wget jq ripgrep fd zoxide fzf eza zellij gh starship \
+        bat direnv git-delta just btop shellcheck
+
+    log "Installing macOS language toolchains"
+    brew install python uv fnm
+}
+
 setup_macos() {
     log "Setting up macOS developer tools"
     ensure_homebrew
-    brew install gcc make cmake fish neovim git curl wget jq ripgrep fd zoxide fzf eza python uv fnm zellij gh starship
+    install_macos_package_groups
+}
+
+install_wsl_package_groups() {
+    log "Installing Ubuntu base CLI packages for WSL"
+    sudo apt install -y software-properties-common build-essential cmake pkg-config unzip tar fontconfig \
+        fish git curl wget jq ripgrep fd-find fzf zoxide python3 python3-pip python3-venv \
+        bat direnv just shellcheck
+
+    log "Installing Ubuntu convenience packages for WSL"
+    sudo apt install -y eza git-delta btop || warn "Some convenience packages are not available in the default Ubuntu repositories"
 }
 
 setup_wsl_ubuntu() {
@@ -133,11 +152,8 @@ setup_wsl_ubuntu() {
 
     detect_arch
 
-    log "Installing Ubuntu packages for WSL"
     sudo apt update
-    sudo apt install -y software-properties-common build-essential cmake pkg-config unzip tar fontconfig \
-        fish git curl wget jq ripgrep fd-find fzf python3 python3-pip python3-venv
-    sudo apt install -y zoxide eza || warn "zoxide/eza not available in the default Ubuntu repositories"
+    install_wsl_package_groups
 
     log "Installing user-space binaries"
     install_neovim_linux
@@ -151,6 +167,21 @@ configure_git() {
     git config --global init.defaultBranch "main"
     git config --global pull.rebase true
     git config --global fetch.prune true
+    git config --global merge.conflictstyle zdiff3
+    git config --global rebase.autostash true
+    if command -v delta >/dev/null 2>&1; then
+        git config --global core.pager "delta"
+        git config --global interactive.diffFilter "delta --color-only"
+        git config --global delta.navigate true
+        git config --global delta.light false
+    fi
+}
+
+install_gitignore_global() {
+    log "Installing global gitignore"
+    mkdir -p "$HOME/.config/git"
+    cp "$REPO_ROOT/config/git/ignore" "$HOME/.config/git/ignore"
+    git config --global core.excludesfile "$HOME/.config/git/ignore"
 }
 
 install_python_tools() {
@@ -169,6 +200,9 @@ install_python_tools() {
     fi
     if ! command -v pre-commit >/dev/null 2>&1; then
         uv tool install pre-commit
+    fi
+    if ! command -v basedpyright >/dev/null 2>&1; then
+        uv tool install basedpyright
     fi
 }
 
@@ -306,6 +340,7 @@ main() {
     esac
 
     configure_git
+    install_gitignore_global
     install_python_tools
     install_node_tools
     install_starship
