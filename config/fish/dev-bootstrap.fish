@@ -5,6 +5,39 @@ set -gx PATH "$HOME/.cargo/bin" $PATH
 set -gx PATH "/opt/homebrew/bin" $PATH
 set -gx PATH "/usr/local/bin" $PATH
 
+# Enable vi-style editing on the fish command line.
+set -g fish_key_bindings fish_vi_key_bindings
+# Keep multi-key custom bindings responsive without making lone "j" feel laggy.
+set -g fish_sequence_key_delay_ms 200
+
+function fish_user_key_bindings
+    fish_vi_key_bindings
+
+    # Keep history navigation scoped to the current command prefix.
+    bind -M insert up history-prefix-search-backward
+    bind -M insert down history-prefix-search-forward
+    bind -M default up history-prefix-search-backward
+    bind -M default down history-prefix-search-forward
+
+    # Restore fuzzy history search if an fzf binding function is present.
+    if type -q fzf_configure_bindings
+        fzf_configure_bindings --directory=\cf --git_log=\cg --git_status=\cs --history=\cr --variables=\cv
+    else if type -q fzf_history_widget
+        bind -M insert ctrl-r fzf_history_widget
+        bind -M default ctrl-r fzf_history_widget
+    else
+        bind -M insert ctrl-r history-pager
+        bind -M default ctrl-r history-pager
+    end
+
+    # Allow leaving insert mode with "jj" in addition to Escape.
+    bind -M insert -m default j,j repaint-mode
+end
+
+function fish_mode_prompt
+    fish_default_mode_prompt
+end
+
 if command -v starship > /dev/null
     starship init fish | source
 end
@@ -19,10 +52,6 @@ end
 
 if command -v fnm > /dev/null
     fnm env --use-on-cd | source
-end
-
-if type -q fzf_configure_bindings
-    fzf_configure_bindings --directory=\cf --git_log=\cg --git_status=\cs --history=\cr --variables=\cv
 end
 
 if command -v eza > /dev/null
