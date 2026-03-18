@@ -30,6 +30,17 @@ parse_args() {
     done
 }
 
+ensure_npm_global_package() {
+    local package_name="$1"
+    local command_name="$2"
+
+    if command -v "$command_name" >/dev/null 2>&1; then
+        return
+    fi
+
+    npm install -g "$package_name" >/dev/null
+}
+
 pick_github_asset() {
     local repo="$1"
     local regex="$2"
@@ -115,12 +126,38 @@ install_gh_linux() {
 }
 
 install_macos_package_groups() {
-    log "Installing macOS base CLI packages"
-    brew install gcc make cmake fish neovim git curl wget jq ripgrep fd zoxide fzf eza zellij gh starship \
-        bat direnv git-delta just btop shellcheck
+    log "Ensuring macOS base CLI packages"
+    ensure_brew_formula gcc
+    ensure_brew_formula make
+    ensure_brew_formula cmake
+    ensure_brew_formula fish
+    ensure_brew_formula neovim
+    ensure_brew_formula git
+    ensure_brew_formula curl
+    ensure_brew_formula wget
+    ensure_brew_formula jq
+    ensure_brew_formula ripgrep
+    ensure_brew_formula fd
+    ensure_brew_formula zoxide
+    ensure_brew_formula fzf
+    ensure_brew_formula eza
+    ensure_brew_formula zellij
+    ensure_brew_formula gh
+    ensure_brew_formula starship
+    ensure_brew_formula bat
+    ensure_brew_formula dust
+    ensure_brew_formula direnv
+    ensure_brew_formula git-delta
+    ensure_brew_formula just
+    ensure_brew_formula btop
+    ensure_brew_formula shellcheck
+    ensure_brew_formula tldr
+    ensure_brew_formula xh
 
-    log "Installing macOS language toolchains"
-    brew install python uv fnm
+    log "Ensuring macOS language toolchains"
+    ensure_brew_formula python
+    ensure_brew_formula uv
+    ensure_brew_formula fnm
 }
 
 setup_macos() {
@@ -133,10 +170,10 @@ install_wsl_package_groups() {
     log "Installing Ubuntu base CLI packages for WSL"
     sudo apt install -y software-properties-common build-essential cmake pkg-config unzip tar fontconfig \
         fish git curl wget jq ripgrep fd-find fzf zoxide python3 python3-pip python3-venv \
-        bat direnv just shellcheck
+        bat direnv just shellcheck tldr
 
     log "Installing Ubuntu convenience packages for WSL"
-    sudo apt install -y eza git-delta btop || warn "Some convenience packages are not available in the default Ubuntu repositories"
+    sudo apt install -y eza git-delta btop dust xh || warn "Some convenience packages are not available in the default Ubuntu repositories"
 }
 
 setup_wsl_ubuntu() {
@@ -178,14 +215,14 @@ configure_git() {
 }
 
 install_gitignore_global() {
-    log "Installing global gitignore"
-    mkdir -p "$HOME/.config/git"
-    cp "$REPO_ROOT/config/git/ignore" "$HOME/.config/git/ignore"
+    if copy_file_if_different "$REPO_ROOT/config/git/ignore" "$HOME/.config/git/ignore"; then
+        log "Installed global gitignore"
+    fi
     git config --global core.excludesfile "$HOME/.config/git/ignore"
 }
 
 install_python_tools() {
-    log "Installing Python developer tools"
+    log "Ensuring Python developer tools"
 
     if ! command -v uv >/dev/null 2>&1; then
         curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -209,7 +246,7 @@ install_python_tools() {
 install_node_tools() {
     local fnm_bin node_lts_version
 
-    log "Installing Node.js via fnm"
+    log "Ensuring Node.js via fnm"
 
     if ! command -v fnm >/dev/null 2>&1; then
         curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "$HOME/.local/bin" --skip-shell
@@ -224,13 +261,20 @@ install_node_tools() {
 
     eval "$("$fnm_bin" env --shell bash)"
 
-    "$fnm_bin" install --lts
     node_lts_version="$("$fnm_bin" current)"
-    [[ -n "$node_lts_version" && "$node_lts_version" != "system" ]] || fail "fnm did not activate an LTS Node version"
+    if [[ -z "$node_lts_version" || "$node_lts_version" == "system" ]]; then
+        "$fnm_bin" install --lts >/dev/null
+        node_lts_version="$("$fnm_bin" current)"
+        [[ -n "$node_lts_version" && "$node_lts_version" != "system" ]] || fail "fnm did not activate an LTS Node version"
+        "$fnm_bin" default "$node_lts_version" >/dev/null
+        "$fnm_bin" use "$node_lts_version" >/dev/null
+    fi
 
-    "$fnm_bin" default "$node_lts_version"
-    "$fnm_bin" use "$node_lts_version"
-    npm install -g pnpm yarn typescript tsx npm-check-updates
+    ensure_npm_global_package pnpm pnpm
+    ensure_npm_global_package yarn yarn
+    ensure_npm_global_package typescript tsc
+    ensure_npm_global_package tsx tsx
+    ensure_npm_global_package npm-check-updates ncu
 }
 
 install_starship() {
@@ -243,9 +287,9 @@ install_starship() {
 }
 
 install_fish_config() {
-    log "Installing Fish config"
-    mkdir -p "$HOME/.config/fish/conf.d"
-    cp "$REPO_ROOT/config/fish/dev-bootstrap.fish" "$HOME/.config/fish/conf.d/dev-bootstrap.fish"
+    if copy_file_if_different "$REPO_ROOT/config/fish/dev-bootstrap.fish" "$HOME/.config/fish/conf.d/dev-bootstrap.fish"; then
+        log "Installed Fish config"
+    fi
 }
 
 install_repo_nvim_defaults() {
@@ -255,7 +299,7 @@ install_repo_nvim_defaults() {
 
 setup_lazyvim() {
     if [[ -e "$HOME/.config/nvim" ]]; then
-        warn "Skipping LazyVim bootstrap because ~/.config/nvim already exists"
+        info "Skipping LazyVim bootstrap because ~/.config/nvim already exists"
         return
     fi
 
@@ -293,11 +337,35 @@ print_versions() {
     if command -v yarn >/dev/null 2>&1; then
         printf 'yarn: %s\n' "$(yarn --version)"
     fi
+    if command -v bat >/dev/null 2>&1; then
+        printf 'bat: %s\n' "$(bat --version | head -n 1)"
+    fi
+    if command -v btop >/dev/null 2>&1; then
+        printf 'btop: %s\n' "$(btop --version | head -n 1)"
+    fi
+    if command -v delta >/dev/null 2>&1; then
+        printf 'delta: %s\n' "$(delta --version | head -n 1)"
+    fi
+    if command -v direnv >/dev/null 2>&1; then
+        printf 'direnv: %s\n' "$(direnv version)"
+    fi
+    if command -v dust >/dev/null 2>&1; then
+        printf 'dust: %s\n' "$(dust --version)"
+    fi
+    if command -v just >/dev/null 2>&1; then
+        printf 'just: %s\n' "$(just --version)"
+    fi
+    if command -v tldr >/dev/null 2>&1; then
+        printf 'tldr: %s\n' "$(tldr --version | head -n 1)"
+    fi
+    if command -v xh >/dev/null 2>&1; then
+        printf 'xh: %s\n' "$(xh --version | head -n 1)"
+    fi
     if command -v zellij >/dev/null 2>&1; then
         printf 'zellij: %s\n' "$(zellij --version)"
     fi
     if command -v starship >/dev/null 2>&1; then
-        printf 'starship: %s\n' "$(starship --version)"
+        printf 'starship: %s\n' "$(starship --version | head -n 1)"
     fi
     if command -v gh >/dev/null 2>&1; then
         printf 'gh: %s\n' "$(gh --version | head -n 1)"

@@ -11,6 +11,14 @@ source "$REPO_ROOT/scripts/lib/macos.sh"
 
 SKIP_GUI=0
 PASSTHROUGH_ARGS=()
+WEZTERM_CONFIG_CHANGED=0
+YABAI_CONFIG_CHANGED=0
+SKHD_CONFIG_CHANGED=0
+HAMMERSPOON_CONFIG_CHANGED=0
+STACKLINE_INSTALLED=0
+YABAI_INSTALLED=0
+SKHD_INSTALLED=0
+HAMMERSPOON_INSTALLED=0
 
 while (($# > 0)); do
     case "$1" in
@@ -26,48 +34,115 @@ while (($# > 0)); do
 done
 
 install_macos_gui_apps() {
-    log "Installing macOS GUI apps"
-    brew tap koekeishiya/formulae
-    brew install koekeishiya/formulae/yabai koekeishiya/formulae/skhd
-    brew install --cask wezterm visual-studio-code hammerspoon font-fira-code-nerd-font font-jetbrains-mono-nerd-font
+    log "Ensuring macOS GUI apps"
+    ensure_brew_tap "koekeishiya/formulae"
+    ensure_brew_formula "koekeishiya/formulae/yabai"
+    if ((BREW_ACTION_TAKEN == 1)); then
+        YABAI_INSTALLED=1
+    fi
+    ensure_brew_formula "koekeishiya/formulae/skhd"
+    if ((BREW_ACTION_TAKEN == 1)); then
+        SKHD_INSTALLED=1
+    fi
+    ensure_brew_cask "wezterm" "/Applications/WezTerm.app"
+    ensure_brew_cask "visual-studio-code" "/Applications/Visual Studio Code.app"
+    ensure_brew_cask "hammerspoon" "/Applications/Hammerspoon.app"
+    if ((BREW_ACTION_TAKEN == 1)); then
+        HAMMERSPOON_INSTALLED=1
+    fi
+    ensure_brew_cask "font-fira-code-nerd-font"
+    ensure_brew_cask "font-jetbrains-mono-nerd-font"
 }
 
 install_wezterm_config() {
-    log "Installing WezTerm config"
-    mkdir -p "$HOME/.config/wezterm"
-    cp "$REPO_ROOT/config/wezterm/wezterm.lua" "$HOME/.config/wezterm/wezterm.lua"
+    if copy_file_if_different "$REPO_ROOT/config/wezterm/wezterm.lua" "$HOME/.config/wezterm/wezterm.lua"; then
+        WEZTERM_CONFIG_CHANGED=1
+        log "Installed WezTerm config"
+    fi
 }
 
 install_yabai_config() {
-    log "Installing yabai config"
-    mkdir -p "$HOME/.config/yabai"
-    cp "$REPO_ROOT/config/yabai/yabairc" "$HOME/.config/yabai/yabairc"
-    chmod +x "$HOME/.config/yabai/yabairc"
+    if copy_file_if_different "$REPO_ROOT/config/yabai/yabairc" "$HOME/.config/yabai/yabairc" 0755; then
+        YABAI_CONFIG_CHANGED=1
+        log "Installed yabai config"
+    fi
 }
 
 install_skhd_config() {
-    log "Installing skhd config"
-    mkdir -p "$HOME/.config/skhd"
-    cp "$REPO_ROOT/config/skhd/skhdrc" "$HOME/.config/skhd/skhdrc"
+    if copy_file_if_different "$REPO_ROOT/config/skhd/skhdrc" "$HOME/.config/skhd/skhdrc"; then
+        SKHD_CONFIG_CHANGED=1
+        log "Installed skhd config"
+    fi
 }
 
 install_stackline() {
-    log "Installing stackline and Hammerspoon config"
     mkdir -p "$HOME/.hammerspoon"
 
     if [[ ! -d "$HOME/.hammerspoon/stackline/.git" ]]; then
+        STACKLINE_INSTALLED=1
+        log "Installing stackline"
         git clone https://github.com/AdamWagner/stackline.git "$HOME/.hammerspoon/stackline"
     fi
 
-    cp "$REPO_ROOT/config/hammerspoon/init.lua" "$HOME/.hammerspoon/init.lua"
-    cp "$REPO_ROOT/config/hammerspoon/stackline-conf.lua" "$HOME/.hammerspoon/stackline/conf.lua"
+    if copy_file_if_different "$REPO_ROOT/config/hammerspoon/init.lua" "$HOME/.hammerspoon/init.lua"; then
+        HAMMERSPOON_CONFIG_CHANGED=1
+        log "Installed Hammerspoon init config"
+    fi
+
+    if copy_file_if_different "$REPO_ROOT/config/hammerspoon/stackline-conf.lua" "$HOME/.hammerspoon/stackline/conf.lua"; then
+        HAMMERSPOON_CONFIG_CHANGED=1
+        log "Installed stackline config"
+    fi
 }
 
 start_macos_services() {
     log "Starting macOS window manager services"
-    brew services restart yabai
-    brew services restart skhd
-    open -a "Hammerspoon" || true
+    if pgrep -x yabai >/dev/null 2>&1; then
+        if ((YABAI_CONFIG_CHANGED == 1)); then
+            /opt/homebrew/bin/yabai --restart-service >/dev/null 2>&1 || warn "Could not restart yabai automatically"
+        fi
+    elif ! /opt/homebrew/bin/yabai --start-service >/dev/null 2>&1; then
+        warn "Could not start yabai automatically"
+    fi
+
+    if pgrep -x skhd >/dev/null 2>&1; then
+        if ((SKHD_CONFIG_CHANGED == 1)); then
+            /opt/homebrew/bin/skhd --restart-service >/dev/null 2>&1 || warn "Could not restart skhd automatically"
+        fi
+    elif ! /opt/homebrew/bin/skhd --start-service >/dev/null 2>&1; then
+        warn "Could not start skhd automatically"
+    fi
+
+    if pgrep -x Hammerspoon >/dev/null 2>&1; then
+        if ((HAMMERSPOON_CONFIG_CHANGED == 0 && STACKLINE_INSTALLED == 0)); then
+            return
+        fi
+    fi
+
+    if [[ -d "/Applications/Hammerspoon.app" ]]; then
+        open "/Applications/Hammerspoon.app" || warn "Could not open Hammerspoon"
+    elif [[ -d "$HOME/Applications/Hammerspoon.app" ]]; then
+        open "$HOME/Applications/Hammerspoon.app" || warn "Could not open Hammerspoon"
+    else
+        warn "Hammerspoon.app was not found in /Applications or ~/Applications"
+    fi
+}
+
+print_macos_manual_steps() {
+    if ((YABAI_INSTALLED == 0 && SKHD_INSTALLED == 0 && HAMMERSPOON_INSTALLED == 0)); then
+        return
+    fi
+
+    log "macOS manual steps"
+    printf "System Settings > Privacy & Security > Accessibility:\n"
+    printf "  - Enable skhd\n"
+    printf "  - Enable Hammerspoon\n"
+    printf "  - Enable yabai if macOS prompts for it\n"
+    printf "System Settings > Privacy & Security > Screen & System Audio Recording:\n"
+    printf "  - Enable Hammerspoon if stackline or automation features need it\n"
+    printf "Open Hammerspoon once and allow any permission prompts.\n"
+    printf "If you want full yabai scripting-addition features, complete the sudoers/SIP steps from:\n"
+    printf "  https://github.com/asmvik/yabai/wiki/Installing-yabai-(latest-release)#configure-scripting-addition\n"
 }
 
 main() {
@@ -81,11 +156,16 @@ main() {
         install_skhd_config
         install_stackline
         start_macos_services
+        print_macos_manual_steps
     else
         log "Skipping macOS GUI apps"
     fi
 
-    exec "$REPO_ROOT/scripts/dev-unix.sh" --target mac-personal "${PASSTHROUGH_ARGS[@]}"
+    if ((${#PASSTHROUGH_ARGS[@]} > 0)); then
+        exec "$REPO_ROOT/scripts/dev-unix.sh" --target mac-personal "${PASSTHROUGH_ARGS[@]}"
+    fi
+
+    exec "$REPO_ROOT/scripts/dev-unix.sh" --target mac-personal
 }
 
 main
