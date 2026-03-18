@@ -15,7 +15,7 @@ end
 
 -- 1. THE ENGINE
 if is_windows then
-  config.default_prog = { 'wsl.exe', '~', '-d', 'Ubuntu' }
+  config.default_prog = { 'wsl.exe', '-d', 'Ubuntu', '--cd', '~' }
 elseif is_macos then
   if file_exists('/opt/homebrew/bin/fish') then
     config.default_prog = { '/opt/homebrew/bin/fish', '-l' }
@@ -39,6 +39,7 @@ config.font = wezterm.font_with_fallback({
   'JetBrainsMono Nerd Font',
   'JetBrainsMonoNL Nerd Font',
   'JetBrainsMonoNL Nerd Font Mono',
+  'Consolas',
   'Menlo',
 })
 config.font_size = is_macos and 13.0 or 11.5
