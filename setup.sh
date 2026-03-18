@@ -96,6 +96,7 @@ fi
 echo "🔤 Installing FiraCode Nerd Font..."
 if [ "$OS_TYPE" = "Darwin" ]; then
     brew install --cask font-fira-code-nerd-font || echo "⚠️ Could not install font via brew."
+    brew install --cask font-jetbrains-mono-nerd-font || echo "⚠️ Could not install JetBrains Mono Nerd Font via brew."
 elif [ "$OS_TYPE" = "Linux" ]; then
     mkdir -p ~/.local/share/fonts
     curl -LO https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip
@@ -108,7 +109,19 @@ elif [ "$OS_TYPE" = "Linux" ]; then
 fi
 
 # ==========================================
-# 3. Sensible Git Defaults
+# 3. WezTerm Setup (macOS only)
+# ==========================================
+if [ "$OS_TYPE" = "Darwin" ]; then
+    echo "🖥️ Installing WezTerm..."
+    brew install --cask wezterm || echo "⚠️ Could not install WezTerm via brew."
+
+    echo "🛠️ Installing WezTerm config..."
+    mkdir -p "$HOME/.config/wezterm"
+    cp "$(cd "$(dirname "$0")" && pwd)/wezterm.lua" "$HOME/.config/wezterm/wezterm.lua"
+fi
+
+# ==========================================
+# 4. Sensible Git Defaults
 # ==========================================
 echo "⚙️ Configuring sensible Git defaults..."
 git config --global core.editor "nvim"
@@ -117,7 +130,7 @@ git config --global pull.rebase true
 git config --global fetch.prune true
 
 # ==========================================
-# 4. Python Setup (via UV)
+# 5. Python Setup (via UV)
 # ==========================================
 echo "🐍 Installing UV and Python Fullstack Tools..."
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -128,7 +141,7 @@ uv tool install httpie
 uv tool install pre-commit  
 
 # ==========================================
-# 5. Node.js Setup (via FNM)
+# 6. Node.js Setup (via FNM)
 # ==========================================
 echo "🌐 Installing Node.js via fnm..."
 if ! command -v fnm &> /dev/null; then
@@ -160,13 +173,13 @@ fi
 npm install -g pnpm yarn typescript tsx npm-check-updates
 
 # ==========================================
-# 6. Install Starship Prompt
+# 7. Install Starship Prompt
 # ==========================================
 echo "✨ Installing Starship..."
 curl -sS https://starship.rs/install.sh | sh -s -- -y --bin-dir "$HOME/.local/bin"
 
 # ==========================================
-# 7. Clean configs & Setup Command Cockpit
+# 8. Clean configs & Setup Command Cockpit
 # ==========================================
 echo "🐚 Creating clean configs..."
 mkdir -p ~/.config/fish
@@ -216,7 +229,7 @@ abbr gl  "git log --oneline --graph --decorate"
 abbr pr  "gh pr create"
 
 # Multiplexer
-abbr z  "zellij"
+abbr zj "zellij"
 abbr za "zellij attach"
 
 # Python / UV
@@ -246,7 +259,7 @@ abbr nvc  "cd ~/.config/nvim && nvim"
 EOF
 
 # ==========================================
-# 8. Setup LazyVim
+# 9. Setup LazyVim
 # ==========================================
 echo "💤 Installing LazyVim Starter..."
 rm -rf ~/.config/nvim
@@ -254,7 +267,7 @@ git clone https://github.com/LazyVim/starter ~/.config/nvim
 rm -rf ~/.config/nvim/.git
 
 # ==========================================
-# 9. Finalize
+# 10. Finalize
 # ==========================================
 echo "✅ Setup Complete!"
 echo "👉 Run: 'chsh -s \$(which fish)' to make Fish your default shell."

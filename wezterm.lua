@@ -1,30 +1,64 @@
 local wezterm = require 'wezterm'
 local config = wezterm.config_builder()
+local target = wezterm.target_triple
+local is_windows = target:find('windows') ~= nil
+local is_macos = target:find('apple%-darwin') ~= nil
 
--- 1. THE ENGINE (Now pointing to Ubuntu)
-config.default_prog = { 'wsl.exe', '~', '-d', 'Ubuntu' }
+local function file_exists(path)
+  local file = io.open(path, 'r')
+  if file then
+    file:close()
+    return true
+  end
+  return false
+end
 
--- 2. THE ENVIRONMENT (Cleaned for WSL)
+-- 1. THE ENGINE
+if is_windows then
+  config.default_prog = { 'wsl.exe', '~', '-d', 'Ubuntu' }
+elseif is_macos then
+  if file_exists('/opt/homebrew/bin/fish') then
+    config.default_prog = { '/opt/homebrew/bin/fish', '-l' }
+  elseif file_exists('/usr/local/bin/fish') then
+    config.default_prog = { '/usr/local/bin/fish', '-l' }
+  else
+    config.default_prog = { '/bin/zsh', '-l' }
+  end
+end
+
+-- 2. THE ENVIRONMENT
 config.set_environment_variables = {
-  -- We don't need MSYS2 paths anymore!
   TERM = "xterm-256color",
 }
 
 -- 3. VISUALS & FONTS
 config.color_scheme = 'AdventureTime'
-config.font = wezterm.font('JetBrainsMono Nerd Font', { weight = 'Bold' })
-config.font_size = 11.5 -- Bumped slightly for readability
+config.font = wezterm.font_with_fallback({
+  'FiraCode Nerd Font',
+  'FiraCode NFM',
+  'JetBrainsMono Nerd Font',
+  'JetBrainsMonoNL Nerd Font',
+  'JetBrainsMonoNL Nerd Font Mono',
+  'Menlo',
+})
+config.font_size = is_macos and 13.0 or 11.5
 config.line_height = 1.1
 config.use_fancy_tab_bar = false
 config.window_padding = { left = 5, right = 5, top = 5, bottom = 0 }
+config.window_decorations = is_macos and 'RESIZE' or 'TITLE | RESIZE'
 
--- 4. STATUS BAR (Simplified for Linux)
+-- 4. STATUS BAR
 wezterm.on('update-right-status', function(window, pane)
   local date = wezterm.strftime('%H:%M')
   local cwd = pane:get_current_working_dir()
   local display_cwd = ""
   if cwd then
-    display_cwd = tostring(cwd.file_path):gsub("^/home/[^/]+", "~")
+    display_cwd = tostring(cwd.file_path)
+    if is_windows then
+      display_cwd = display_cwd:gsub("^/home/[^/]+", "~")
+    elseif is_macos then
+      display_cwd = display_cwd:gsub("^/Users/[^/]+", "~")
+    end
   end
 
   window:set_right_status(wezterm.format({
