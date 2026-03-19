@@ -17,11 +17,17 @@ ctrl + alt - k : yabai -m window --resize top:0:-40 || yabai -m window --resize 
 ctrl + alt - j : yabai -m window --resize bottom:0:40 || yabai -m window --resize top:0:40
 
 # Balance and equalize
-alt - e : yabai -m space --balance
+alt - b : yabai -m space --balance
+
+# Rotate tree 
+alt - r : yabai -m space --rotate 90
+
+#toggle stack
+alt - s : yabai -m window --toggle stack
 
 # Float and center
 alt - f : yabai -m window --toggle float
-alt - c : yabai -m window --grid 4:4:1:1:2:2
+alt - c : yabai -m window --grid 4:4:1:1:2:2 #won't work indivdually, only after alt-f
 
 # Move windows between spaces
 shift + alt - 1 : yabai -m window --space 1
@@ -43,17 +49,17 @@ shift + alt - y : yabai -m space --mirror y-axis
 shift + alt - x : yabai -m space --mirror x-axis
 
 # Stack management
-alt - s : yabai -m window --stack prev
-alt - d : yabai -m window --warp east
 alt - tab : yabai -m window --focus stack.next || yabai -m window --focus stack.first
 shift + alt - tab : yabai -m window --focus stack.prev || yabai -m window --focus stack.last
 
 # Layout toggles
 alt - t : yabai -m space --layout float
 shift + alt - t : yabai -m space --layout bsp
-alt - z : yabai -m window --toggle zoom-fullscreen
-shift + alt - f : yabai -m window --toggle zoom-parent
 
-# Utility launcher
-alt - x : open -a "Calculator"
+# zoom 
+alt - z : yabai -m window --toggle zoom-fullscreen
+shift + alt - z : yabai -m window --toggle zoom-parent
+
+
 cmd - e : osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate'
+
